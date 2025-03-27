@@ -4,8 +4,11 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QH
                              QMessageBox)
 from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtCore import Qt, QUrl
-from PyQt5.QtMultimedia import QSound
 from PIL import Image
+from pygame import mixer
+import time
+
+mixer.init()
 
 
 class IconSelector(QMainWindow):
@@ -21,8 +24,11 @@ class IconSelector(QMainWindow):
         self.currentImageIndex = self.imageIndices[0]
         self.overrideIndex = 0
 
-        self.sound_file = os.path.join(os.path.dirname(__file__), "")
+        self.sound_file = os.path.join(os.path.dirname(__file__), "switch_task.mp3")
         self.init_ui()
+
+        # Record the last time the button was clicked
+        self.last_click_time = 0
 
     def load_ini_file(self):
         with open("mod.ini", "r") as iniFile:
@@ -75,13 +81,13 @@ class IconSelector(QMainWindow):
         button_frame = QFrame()
         button_layout = QHBoxLayout(button_frame)
 
-        self.prev_button = QPushButton("<<")
+        self.prev_button = QPushButton("<<<")
         self.prev_button.clicked.connect(self.previous)
 
         self.apply_button = QPushButton("Apply")
         self.apply_button.clicked.connect(self.apply)
 
-        self.next_button = QPushButton(">>")
+        self.next_button = QPushButton(">>>")
         self.next_button.clicked.connect(self.next)
 
         button_layout.addWidget(self.prev_button)
@@ -107,22 +113,33 @@ class IconSelector(QMainWindow):
         self.list_widget.addItems(filtered_items)
 
     def previous(self):
+        if not self.check_click_interval():
+            return
+
         available = os.listdir(self.currentPath)
         self.currentImageIndex = int(self.currentImageIndex) - 1
         if self.currentImageIndex < 0:
             self.currentImageIndex = len(available) - 1
         self.currentImageIndex = str(self.currentImageIndex)
         self.update_image()
+        self.play_sound()
 
     def next(self):
+        if not self.check_click_interval():
+            return
+
         available = os.listdir(self.currentPath)
         self.currentImageIndex = int(self.currentImageIndex) + 1
         if self.currentImageIndex >= len(available):
             self.currentImageIndex = 0
         self.currentImageIndex = str(self.currentImageIndex)
         self.update_image()
+        self.play_sound()
 
     def apply(self):
+        if not self.check_click_interval():
+            return
+
         with open("mod.ini", "r") as iniFile:
             lines = iniFile.readlines()
 
@@ -146,10 +163,7 @@ class IconSelector(QMainWindow):
 
         QMessageBox.information(self, "Success", "The_modification_was_successful!")
 
-        if os.path.exists(self.sound_file):
-            QSound.play(self.sound_file)
-        else:
-            print(f"Audio file not found: {self.sound_file}")
+        self.play_sound()
 
     def on_select(self, item):
         # Gets the index from the original list, not the filtered index
@@ -175,12 +189,32 @@ class IconSelector(QMainWindow):
         self.image_label.setPixmap(pixmap)
         self.image_label.setScaledContents(True)
 
+    def play_sound(self):
+        try:
+            # Gets the directory where the current script is located
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            # The path to which the audio file is constructed
+            sound_path = os.path.join(current_dir, "switch_task.mp3")
+            # Check if the file exists
+            if os.path.exists(sound_path):
+                # Load and play the audio
+                mixer.music.load(sound_path)
+                mixer.music.play()
+            else:
+                print("Audio file not found:", sound_path)
+        except Exception as e:
+            print("Error playing button sound:", e)
+
+    def check_click_interval(self):
+        current_time = time.time()
+        if current_time - self.last_click_time < 0.085:  # 85ms
+            return False
+        self.last_click_time = current_time
+        return True
+
 
 if __name__ == "__main__":
     app = QApplication([])
     window = IconSelector()
     window.show()
     app.exec_()
-
-# 我感觉原本的Icon_Selector所使用的Tkinter_GUI过于模糊,所以我特意将其修改为PyQt5_GUI以及添加新的搜索栏提供便捷式搜索所需修改的角色名 代码地址,原作者:https://github.com/complex31/AvatarIconModPack我修改后的:https://github.com/baobaobaoPY/AvatarIconModPack
-# I feel that the Tkinter_GUI used by the original Icon_Selector is too vague, so I deliberately modified it to PyQt5_GUI and added a new search bar to provide a convenient search for the character name that needs to be modified. Code address, original author: https:github.comcomplex31AvatarIconModPack I modified it: https:github.combaobaobaoPY?tab=repositories
