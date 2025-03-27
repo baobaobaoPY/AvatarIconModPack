@@ -2,7 +2,7 @@ import os
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QListWidget, QPushButton, QLabel, QScrollArea, QFrame, QLineEdit,
                              QMessageBox)
-from PyQt5.QtGui import QPixmap, QImage
+from PyQt5.QtGui import QPixmap, QImage, QFont, QFontDatabase
 from PyQt5.QtCore import Qt, QUrl
 from PIL import Image
 from pygame import mixer
@@ -41,7 +41,19 @@ class IconSelector(QMainWindow):
 
     def init_ui(self):
         self.setWindowTitle("Icon_Selector")
-        self.setGeometry(500, 220, 760, 500)
+        self.setGeometry(500, 220, 830, 600)
+
+        # Load a custom "Genshin.ttf" font
+        font_path = os.path.join(os.path.dirname(__file__), "Genshin.ttf")
+        font_id = QFontDatabase.addApplicationFont(font_path)
+        if font_id < 0:
+            print("Failed to load font")
+        else:
+            font_families = QFontDatabase.applicationFontFamilies(font_id)
+            if font_families:
+                font = QFont(font_families[0])
+                font.setPointSize(9)  # Set the font size
+                self.setFont(font)  # Sets the font for the entire window
 
         # Main window layout
         main_widget = QWidget()
@@ -71,7 +83,7 @@ class IconSelector(QMainWindow):
         # Image display area
         self.image_label = QLabel()
         self.image_label.setAlignment(Qt.AlignCenter)
-        self.image_label.setFixedSize(255, 255)
+        self.image_label.setFixedSize(475, 475)  # Resize the avatar to be displayed in the GUI interface
 
         scroll_area = QScrollArea()
         scroll_area.setWidget(self.image_label)
