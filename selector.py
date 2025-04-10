@@ -1,12 +1,12 @@
 import os
+import time
+from PIL import Image
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QPixmap, QImage, QFont, QFontDatabase
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QListWidget, QPushButton, QLabel, QScrollArea, QFrame, QLineEdit,
                              QMessageBox)
-from PyQt5.QtGui import QPixmap, QImage, QFont, QFontDatabase
-from PyQt5.QtCore import Qt, QUrl
-from PIL import Image
 from pygame import mixer
-import time
 
 mixer.init()
 
@@ -41,7 +41,7 @@ class IconSelector(QMainWindow):
 
     def init_ui(self):
         self.setWindowTitle("Icon_Selector")
-        self.setGeometry(500, 220, 830, 600)
+        self.setGeometry(500, 220, 845, 640)
 
         # Load a custom "Genshin.ttf" font
         font_path = os.path.join(os.path.dirname(__file__), "Genshin.ttf")
@@ -83,7 +83,7 @@ class IconSelector(QMainWindow):
         # Image display area
         self.image_label = QLabel()
         self.image_label.setAlignment(Qt.AlignCenter)
-        self.image_label.setFixedSize(475, 475)  # Resize the avatar to be displayed in the GUI interface
+        self.image_label.setFixedSize(490, 490)  # Resize the avatar to be displayed in the GUI interface
 
         scroll_area = QScrollArea()
         scroll_area.setWidget(self.image_label)
@@ -128,10 +128,9 @@ class IconSelector(QMainWindow):
         if not self.check_click_interval():
             return
 
-        available = os.listdir(self.currentPath)
         self.currentImageIndex = int(self.currentImageIndex) - 1
         if self.currentImageIndex < 0:
-            self.currentImageIndex = len(available) - 1
+            self.currentImageIndex = len(os.listdir(self.currentPath)) - 1
         self.currentImageIndex = str(self.currentImageIndex)
         self.update_image()
         self.play_sound()
@@ -140,9 +139,8 @@ class IconSelector(QMainWindow):
         if not self.check_click_interval():
             return
 
-        available = os.listdir(self.currentPath)
         self.currentImageIndex = int(self.currentImageIndex) + 1
-        if self.currentImageIndex >= len(available):
+        if self.currentImageIndex >= len(os.listdir(self.currentPath)):
             self.currentImageIndex = 0
         self.currentImageIndex = str(self.currentImageIndex)
         self.update_image()
@@ -178,7 +176,6 @@ class IconSelector(QMainWindow):
         self.play_sound()
 
     def on_select(self, item):
-        # Gets the index from the original list, not the filtered index
         selected_text = item.text()
         index = self.overrides.index(selected_text)
 
@@ -189,27 +186,44 @@ class IconSelector(QMainWindow):
         self.update_image()
 
     def update_image(self):
-        image_path = f"{self.currentPath}/{self.currentImageIndex}.dds"
-        pil_image = Image.open(image_path)
-        pil_image = pil_image.transpose(Image.FLIP_TOP_BOTTOM)
+        available_files = os.listdir(self.currentPath)
+        found_dds = False
+        attempts = 0
+        max_attempts = len(available_files)  # Maximum attempts is the number of files in the folder
 
-        # Convert PIL images to QImage and then QPixmap
-        data = pil_image.convert("RGBA").tobytes("raw", "RGBA")
-        qimage = QImage(data, pil_image.size[0], pil_image.size[1], QImage.Format_RGBA8888)
-        pixmap = QPixmap.fromImage(qimage)
+        while attempts < max_attempts:
+            image_path = f"{self.currentPath}/{self.currentImageIndex}.dds"
+            if os.path.exists(image_path) and image_path.lower().endswith('.dds'):
+                try:
+                    pil_image = Image.open(image_path)
+                    pil_image = pil_image.transpose(Image.FLIP_TOP_BOTTOM)
 
-        self.image_label.setPixmap(pixmap)
-        self.image_label.setScaledContents(True)
+                    # Convert PIL images to QImage and then QPixmap
+                    data = pil_image.convert("RGBA").tobytes("raw", "RGBA")
+                    qimage = QImage(data, pil_image.size[0], pil_image.size[1], QImage.Format_RGBA8888)
+                    pixmap = QPixmap.fromImage(qimage)
+
+                    self.image_label.setPixmap(pixmap)
+                    self.image_label.setScaledContents(True)
+                    found_dds = True
+                    break
+                except Exception as e:
+                    print(f"Error opening image: {e}")
+                    self.currentImageIndex = str((int(self.currentImageIndex) + 1) % len(available_files))
+                    attempts += 1
+            else:
+                self.currentImageIndex = str((int(self.currentImageIndex) + 1) % len(available_files))
+                attempts += 1
+
+        if not found_dds:
+            self.image_label.setText("No DDS files found in this folder")
+            self.image_label.setScaledContents(False)
 
     def play_sound(self):
         try:
-            # Gets the directory where the current script is located
             current_dir = os.path.dirname(os.path.abspath(__file__))
-            # The path to which the audio file is constructed
             sound_path = os.path.join(current_dir, "switch_task.mp3")
-            # Check if the file exists
             if os.path.exists(sound_path):
-                # Load and play the audio
                 mixer.music.load(sound_path)
                 mixer.music.play()
             else:
